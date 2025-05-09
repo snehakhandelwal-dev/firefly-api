@@ -1,87 +1,96 @@
+require('dotenv').config();
+const http = require("http");
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
 const cors = require('cors');
+const { Server } = require('socket.io');
 
 const app = express();
-app.use(cors());
 const server = http.createServer(app);
+const port = process.env.PORT || 5000;
 
 const io = new Server(server, {
   cors: {
-    origin: '*', // You can replace with your frontend URL
-    methods: ['GET', 'POST']
+    origin: "*",
+    methods: ["GET", "POST"]
   }
 });
 
-// Store online users
+app.set("socketio", io);
+app.use(express.json());
+app.use(cors());
+require('./src/config/db');
+
+const userRoutes = require("./src/routes/routes");
+app.use("/", userRoutes);
+
+// Store mapping of userId to socket.id
 const onlineUsers = new Map();
 
 io.on('connection', (socket) => {
-  console.log('New user connected:', socket.id);
+  console.log("✅ User connected:", socket.id);
 
-  // When user joins with userId
-  socket.on('join', (userId) => {
+  socket.on("join-room", (userId) => {
+    socket.join(userId);
     onlineUsers.set(userId, socket.id);
-    console.log(`${userId} joined with socket ID: ${socket.id}`);
+    console.log(`🔗 User ${userId} joined room`);
   });
 
-  // Chat message handling
-  socket.on('send-message', ({ senderId, receiverId, message }) => {
+  socket.on("send-message", (data) => {
+    const { receiverId, senderId, fullName, message, chatId } = data;
     const receiverSocketId = onlineUsers.get(receiverId);
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit('receive-message', {
-        senderId,
-        message
-      });
+      io.to(receiverSocketId).emit("receive-message", data);
+      io.to(receiverSocketId).emit("notification", { senderId, fullName, message, chatId });
     }
   });
 
-  // Call initiation
-  socket.on('call-user', ({ from, to, offer }) => {
-    const targetSocketId = onlineUsers.get(to);
-    if (targetSocketId) {
-      io.to(targetSocketId).emit('incoming-call', { from, offer });
-    }
-  });
-
-  // Answer call
-  socket.on('answer-call', ({ from, to, answer }) => {
-    const callerSocketId = onlineUsers.get(to);
-    if (callerSocketId) {
-      io.to(callerSocketId).emit('call-answered', { from, answer });
-    }
-  });
-
-  // ICE candidate exchange
-  socket.on('ice-candidate', ({ to, candidate }) => {
+  socket.on("typing", ({ to, from, content }) => {
     const receiverSocketId = onlineUsers.get(to);
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit('ice-candidate', { candidate });
+      io.to(receiverSocketId).emit("typing", { from, content });
     }
   });
 
-  // End call
-  socket.on('end-call', ({ to }) => {
+  // Call logic
+  socket.on("call-user", ({ to, offer, isVideo, from }) => {
     const receiverSocketId = onlineUsers.get(to);
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit('call-ended');
+      io.to(receiverSocketId).emit("incoming-call", { from, offer, isVideo });
     }
   });
 
-  // Handle disconnect
+  socket.on("make-answer", ({ to, answer, from }) => {
+    const receiverSocketId = onlineUsers.get(to);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("call-answer", { from, answer });
+    }
+  });
+
+  socket.on("ice-candidate", ({ to, candidate, from }) => {
+    const receiverSocketId = onlineUsers.get(to);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("ice-candidate", { from, candidate });
+    }
+  });
+
+  socket.on("end-call", ({ to }) => {
+    const receiverSocketId = onlineUsers.get(to);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("call-ended");
+    }
+  });
+
   socket.on('disconnect', () => {
-    for (let [userId, sockId] of onlineUsers.entries()) {
-      if (sockId === socket.id) {
+    console.log("❌ User disconnected:", socket.id);
+    for (let [userId, id] of onlineUsers.entries()) {
+      if (id === socket.id) {
         onlineUsers.delete(userId);
-        console.log(`${userId} disconnected`);
         break;
       }
     }
   });
 });
 
-const PORT = 5000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(port, () => {
+  console.log(`🚀 Server running on port ${port}`);
 });
