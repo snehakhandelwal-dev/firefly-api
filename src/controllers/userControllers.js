@@ -1,6 +1,7 @@
 const UsersModel = require("../models/userSchema");
 const jwt = require("jsonwebtoken");
 const bcrypt = require('bcryptjs');
+
 const crypto = require("crypto");
 require("dotenv").config();
 exports.register = async (req, res) => {
