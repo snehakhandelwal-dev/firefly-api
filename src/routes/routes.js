@@ -1,15 +1,17 @@
 const express = require("express");
 const router = express.Router();
 
-const user_controller = require("../controllers/userControllers");
+const userController = require("../controllers/userControllers");
 const message_controller = require("../controllers/messageControllers");
 //-----------Users Controllers----------------
 
-router.post("/users/register", user_controller.register);
-router.post("/users/login", user_controller.login);
-router.post("/users/logout", user_controller.logout);
-router.get("/profile/:userId", user_controller.getProfile);
-router.get("/getOtherUsers/:userId", user_controller.getOtherUsers);
+router.post("/users/register", userController.register);
+router.post("/users/login", userController.login);
+router.post("/users/logout", userController.logout);
+router.get("/profile/:userId", userController.getProfile);
+router.get("/getOtherUsers/:userId", userController.getOtherUsers);
+router.put("/profile/:userId", userController.updateProfile);
+router.delete("/profile/:userId", userController.deleteProfile);
 
 
 //-----------Messages Controllers----------------
