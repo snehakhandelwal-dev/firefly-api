@@ -42,37 +42,26 @@ io.on('connection', (socket) => {
   });
 
   // Call logic
-  // Call logic
-  socket.on("call-user", ({ to, offer, isVideo, from, fromName }) => {
-    // Forward the call offer to the target user
-    socket.to(to).emit("incoming-call", {
-      from,
-      offer,
-      isVideo,
-      fromName,
-    });
+  socket.on("call-user", ({ to, offer, isVideo, from }) => {
+    socket.to(to).emit("incoming-call", { from, offer, isVideo });
   });
 
   socket.on("make-answer", ({ to, answer, from }) => {
-    // Forward the answer back to the caller
-    socket.to(to).emit("call-answer", { answer, from });
+    socket.to(to).emit("call-answer", { from, answer });
   });
 
-  socket.on("ice-candidate", ({ to, from, candidate }) => {
-    // Relay ICE candidate to the other peer
+  socket.on("ice-candidate", ({ to, candidate, from }) => {
     socket.to(to).emit("ice-candidate", { from, candidate });
   });
 
   socket.on("end-call", ({ to }) => {
-    // Notify the other user to end the call
     socket.to(to).emit("call-ended");
   });
 
-  socket.on("disconnect", () => {
+  socket.on('disconnect', () => {
     console.log("❌ User disconnected:", socket.id);
   });
 });
-
 
 server.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
